@@ -1,131 +1,170 @@
 import React, { useEffect, useState, createContext, useContext } from 'react';
-// Mock user data
-const mockUsers = [{
-  id: 1,
-  email: 'admin@farmai.com',
-  password: 'admin123',
-  name: 'Admin User',
-  role: 'admin'
-}, {
-  id: 2,
-  email: 'farmer@farmai.com',
-  password: 'farmer123',
-  name: 'John Farmer',
-  role: 'farmer'
-}];
-type User = {
-  id: number;
+import { mockUsers } from '../utils/mockData';
+interface User {
+  id: string;
   email: string;
   name: string;
-  role: 'admin' | 'farmer';
-};
-type AuthContextType = {
-  user: User | null;
+  age?: number;
+  location?: string;
+  farmName?: string;
+  type: 'admin' | 'user';
+}
+interface AuthContextType {
+  currentUser: User | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  signup: (email: string, password: string, name: string) => Promise<boolean>;
+  signup: (userData: Omit<User, 'id'> & {
+    password: string;
+  }) => Promise<boolean>;
   logout: () => void;
-};
+  updateUser: (userData: Partial<User>) => void;
+  updatePassword: (oldPassword: string, newPassword: string) => Promise<boolean>;
+  users: User[];
+  deleteUser: (userId: string) => void;
+}
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{
   children: React.ReactNode;
 }> = ({
   children
 }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  // Check if user is already logged in
+  const [passwords, setPasswords] = useState<Record<string, string>>({
+    'emmaderek80@gmail.com': 'Emma123'
+  });
   useEffect(() => {
-    const storedUser = localStorage.getItem('farmAiUser');
+    // Initialize with mock data
+    setUsers(mockUsers);
+    // Check for stored auth data
+    const storedUser = localStorage.getItem('currentUser');
     if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setIsAuthenticated(true);
-      } catch (error) {
-        console.error('Failed to parse stored user:', error);
-        localStorage.removeItem('farmAiUser');
-      }
+      setCurrentUser(JSON.parse(storedUser));
+      setIsAuthenticated(true);
+    }
+    // Load saved users from localStorage if available
+    const storedUsers = localStorage.getItem('users');
+    if (storedUsers) {
+      setUsers(JSON.parse(storedUsers));
+    } else {
+      // Initialize with mock data and save to localStorage
+      localStorage.setItem('users', JSON.stringify(mockUsers));
+    }
+    // Load saved passwords from localStorage if available
+    const storedPasswords = localStorage.getItem('passwords');
+    if (storedPasswords) {
+      setPasswords(JSON.parse(storedPasswords));
+    } else {
+      // Initialize with admin password and save to localStorage
+      localStorage.setItem('passwords', JSON.stringify({
+        'emmaderek80@gmail.com': 'Emma123'
+      }));
     }
   }, []);
-  // Login function
   const login = async (email: string, password: string): Promise<boolean> => {
-    // In a real app, this would be an API call
-    const foundUser = mockUsers.find(u => u.email === email && u.password === password);
-    if (foundUser) {
-      const {
-        password: _,
-        ...userWithoutPassword
-      } = foundUser;
-      setUser(userWithoutPassword);
-      setIsAuthenticated(true);
-      localStorage.setItem('farmAiUser', JSON.stringify(userWithoutPassword));
-      // Save user to localStorage for persistence
-      saveUserToLocalStorage(userWithoutPassword);
-      return true;
+    // Check if email exists in passwords
+    if (passwords[email] === password) {
+      const user = users.find(u => u.email === email);
+      if (user) {
+        setCurrentUser(user);
+        setIsAuthenticated(true);
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        return true;
+      }
     }
     return false;
   };
-  // Signup function
-  const signup = async (email: string, password: string, name: string): Promise<boolean> => {
-    // Check if user already exists
-    const userExists = mockUsers.some(u => u.email === email);
-    if (userExists) {
+  const signup = async (userData: Omit<User, 'id'> & {
+    password: string;
+  }): Promise<boolean> => {
+    const {
+      password,
+      ...userWithoutPassword
+    } = userData;
+    // Check if email already exists
+    if (users.some(u => u.email === userData.email)) {
       return false;
     }
-    // In a real app, this would be an API call
     const newUser = {
-      id: mockUsers.length + 1,
-      email,
-      password,
-      name,
-      role: 'farmer' as const
+      ...userWithoutPassword,
+      id: Date.now().toString()
     };
-    // Add user to mock database
-    mockUsers.push(newUser);
-    // Remove password before setting user state
-    const {
-      password: _,
-      ...userWithoutPassword
-    } = newUser;
-    // Set user state and authenticate
-    setUser(userWithoutPassword);
-    setIsAuthenticated(true);
-    // Save user to localStorage for persistence
-    saveUserToLocalStorage(userWithoutPassword);
+    const updatedUsers = [...users, newUser];
+    setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
+    // Save password
+    const updatedPasswords = {
+      ...passwords,
+      [userData.email]: password
+    };
+    setPasswords(updatedPasswords);
+    localStorage.setItem('passwords', JSON.stringify(updatedPasswords));
     return true;
   };
-  // Helper function to save user to localStorage
-  const saveUserToLocalStorage = (user: User) => {
-    try {
-      localStorage.setItem('farmAiUser', JSON.stringify(user));
-      // Also save to a separate users collection for potential admin use
-      const allUsers = JSON.parse(localStorage.getItem('farmAiAllUsers') || '[]');
-      if (!allUsers.some((u: User) => u.id === user.id)) {
-        allUsers.push(user);
-        localStorage.setItem('farmAiAllUsers', JSON.stringify(allUsers));
-      }
-    } catch (error) {
-      console.error('Failed to save user to localStorage:', error);
-    }
-  };
-  // Logout function
   const logout = () => {
-    setUser(null);
+    setCurrentUser(null);
     setIsAuthenticated(false);
-    localStorage.removeItem('farmAiUser');
+    localStorage.removeItem('currentUser');
+  };
+  const updateUser = (userData: Partial<User>) => {
+    if (!currentUser) return;
+    const updatedUser = {
+      ...currentUser,
+      ...userData
+    };
+    setCurrentUser(updatedUser);
+    // Update in users array
+    const updatedUsers = users.map(user => user.id === currentUser.id ? updatedUser : user);
+    setUsers(updatedUsers);
+    // Update localStorage
+    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
+  };
+  const updatePassword = async (oldPassword: string, newPassword: string): Promise<boolean> => {
+    if (!currentUser) return false;
+    // Verify old password
+    if (passwords[currentUser.email] !== oldPassword) {
+      return false;
+    }
+    // Update password
+    const updatedPasswords = {
+      ...passwords,
+      [currentUser.email]: newPassword
+    };
+    setPasswords(updatedPasswords);
+    localStorage.setItem('passwords', JSON.stringify(updatedPasswords));
+    return true;
+  };
+  const deleteUser = (userId: string) => {
+    const userToDelete = users.find(user => user.id === userId);
+    if (!userToDelete) return;
+    const updatedUsers = users.filter(user => user.id !== userId);
+    setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
+    // Remove password
+    const {
+      [userToDelete.email]: _,
+      ...updatedPasswords
+    } = passwords;
+    setPasswords(updatedPasswords);
+    localStorage.setItem('passwords', JSON.stringify(updatedPasswords));
   };
   return <AuthContext.Provider value={{
-    user,
+    currentUser,
     isAuthenticated,
     login,
     signup,
-    logout
+    logout,
+    updateUser,
+    updatePassword,
+    users,
+    deleteUser
   }}>
       {children}
     </AuthContext.Provider>;
 };
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');

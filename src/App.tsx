@@ -1,78 +1,48 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
+import { VoiceProvider } from './context/VoiceContext';
+import { Toaster } from 'sonner';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-import Dashboard from './pages/Dashboard';
+import UserDashboard from './pages/UserDashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import DiseaseDetection from './pages/DiseaseDetection';
-import FarmManagement from './pages/FarmManagement';
 import WeatherForecast from './pages/WeatherForecast';
-import AnimalHealth from './pages/AnimalHealth';
-import AdminPanel from './pages/AdminPanel';
-import Layout from './components/layout/Layout';
-// Protected route component
-const ProtectedRoute = ({
-  children
-}) => {
-  const {
-    isAuthenticated
-  } = useAuth();
-  if (!isAuthenticated) {
-    return <Navigate to="/login" />;
-  }
-  return children;
-};
-// Admin route component
-const AdminRoute = ({
-  children
-}) => {
-  const {
-    isAuthenticated,
-    user
-  } = useAuth();
-  if (!isAuthenticated || user?.role !== 'admin') {
-    return <Navigate to="/dashboard" />;
-  }
-  return children;
-};
+import FarmManagement from './pages/FarmManagement';
+import Settings from './pages/Settings';
+import ProtectedRoute from './components/ProtectedRoute';
 export function App() {
   return <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/" element={<Navigate to="/dashboard" />} />
-          <Route path="/dashboard" element={<ProtectedRoute>
-                <Layout>
-                  <Dashboard />
-                </Layout>
-              </ProtectedRoute>} />
-          <Route path="/disease-detection" element={<ProtectedRoute>
-                <Layout>
-                  <DiseaseDetection />
-                </Layout>
-              </ProtectedRoute>} />
-          <Route path="/farm-management" element={<ProtectedRoute>
-                <Layout>
-                  <FarmManagement />
-                </Layout>
-              </ProtectedRoute>} />
-          <Route path="/weather" element={<ProtectedRoute>
-                <Layout>
-                  <WeatherForecast />
-                </Layout>
-              </ProtectedRoute>} />
-          <Route path="/animal-health" element={<ProtectedRoute>
-                <Layout>
-                  <AnimalHealth />
-                </Layout>
-              </ProtectedRoute>} />
-          <Route path="/admin" element={<AdminRoute>
-                <Layout>
-                  <AdminPanel />
-                </Layout>
-              </AdminRoute>} />
-        </Routes>
-      </Router>
+      <VoiceProvider>
+        <div className="min-h-screen bg-gradient-to-b from-green-50 to-green-100">
+          <Router>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/user-dashboard" element={<ProtectedRoute userType="user">
+                    <UserDashboard />
+                  </ProtectedRoute>} />
+              <Route path="/admin-dashboard" element={<ProtectedRoute userType="admin">
+                    <AdminDashboard />
+                  </ProtectedRoute>} />
+              <Route path="/disease-detection" element={<ProtectedRoute userType="any">
+                    <DiseaseDetection />
+                  </ProtectedRoute>} />
+              <Route path="/weather" element={<ProtectedRoute userType="any">
+                    <WeatherForecast />
+                  </ProtectedRoute>} />
+              <Route path="/farm-management" element={<ProtectedRoute userType="user">
+                    <FarmManagement />
+                  </ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute userType="any">
+                    <Settings />
+                  </ProtectedRoute>} />
+              <Route path="/" element={<Navigate to="/login" replace />} />
+            </Routes>
+          </Router>
+          <Toaster position="top-center" />
+        </div>
+      </VoiceProvider>
     </AuthProvider>;
 }
