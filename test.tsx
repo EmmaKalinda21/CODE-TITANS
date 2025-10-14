@@ -4,5 +4,5 @@ const getConfidenceBadgeColor = (confidence: number = 0) => {
   return "red";
 };
 
-console.log(getConfidenceBadgeColor());    // "red"
-console.log(getConfidenceBadgeColor(0.9)); // "green"
+console.log(getConfidenceBadgeColor());    
+console.log(getConfidenceBadgeColor(0.9)); 
